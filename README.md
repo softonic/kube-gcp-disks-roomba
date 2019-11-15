@@ -13,7 +13,8 @@
 [DockerHub]: https://hub.docker.com/r/softonic/kube-gcp-disks-roomba
 [DockerHub Widget]: https://img.shields.io/docker/pulls/softonic/kube-gcp-disks-roomba.svg
 
-This script is meant to be executed in a pod inside GKE.
+
+Script that runs as a cronjob resource in kubernetes in GKE environments.
 Removes disks from GCP that are not in use, checking first if the storage class is the default (standard).
 Understanding that standard storage class has reclaimPolicy Delete.
 
@@ -48,6 +49,4 @@ Run `cleanupDisks` in the `monitoring` namespace and watch for `pods` in all nam
 ```
 kubectl run NAME --image=image [--env="key=value"] [--port=port] [--replicas=replicas] [--dry-run=bool] [--overrides=inline-json] [--command] -- [COMMAND] [args...]
 kubectl run cleanupDisks --image=softonic/kube-gcp-disks-roomba -- -project=PROJECT_ID europe-west1-c us-west1-c 
-```
-
 ```

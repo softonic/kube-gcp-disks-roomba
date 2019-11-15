@@ -18,6 +18,8 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+
+// structs:
 type pvc struct {
 	zone       string
 	volumeName string
@@ -26,52 +28,56 @@ type pvc struct {
 }
 
 func main() {
-	ctx := context.Background()
 
+	// implicit uses Application Default Credentials to authenticate
+	ctx := context.Background()
 	c, err := google.DefaultClient(ctx, compute.CloudPlatformScope)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	computeService, err := compute.New(c)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+
+	// client-go uses the Service Account token mounted inside the Pod when the rest.InClusterConfig() is used.
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+
+	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	api := clientset.CoreV1()
-
 	ns := ""
-
-	// initial list
-	pvcs, err := api.PersistentVolumeClaims(ns).List(metav1.ListOptions{})
+	// access the API to list PVCs
+	pvcs, err := clientset.CoreV1().PersistentVolumeClaims(ns).List(metav1.ListOptions{})
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// returns array of pvcs with storage class = standard
 	stan := getPVCs(pvcs)
 
 	if len(stan) == 0 {
 		fmt.Println("There is no pvc candidate to be removed")
 	}
 
+	// Flags and arguments
 
-	// Project ID for this request.
-	project := flag.String("project", "foo", "a string")
+	project := flag.String("project", "foo", "a string")	
 	zones := []string{}
-
 	flag.Parse()
-
 	zones = flag.Args()
+
+
+	// iterate zones passed via args and fill the map candidate with the disks that are not in use
 
 	p := pvc{}
 	candidate := make(map[string]pvc)
@@ -80,8 +86,12 @@ func main() {
 		if err := req.Pages(ctx, func(page *compute.DiskList) error {
 			for _, disk := range page.Items {
 				if disk.Users == nil {
+
 					// this means that the pvc is disk is not in use
+					
 					if disk.SourceSnapshot == "" {
+						// regexp to get the following data
+
 						reVolumeName := regexp.MustCompile(`.*kubernetes.io\/created-for\/pv\/name":"([a-zA-Z0-9\-]+)",`)
 						rePvc := regexp.MustCompile(`.*kubernetes.io\/created-for\/pvc\/name":"([a-zA-Z0-9\-]+)",`)
 						reNamespace := regexp.MustCompile(`.*kubernetes.io\/created-for\/pvc\/namespace":"([a-zA-Z0-9\-]+)"`)
@@ -90,13 +100,18 @@ func main() {
 						volumeName := reVolumeName.FindStringSubmatch(disk.Description)[1]
 						p.pvcName = rePvc.FindStringSubmatch(disk.Description)[1]
 						p.namespace = reNamespace.FindStringSubmatch(disk.Description)[1]
+						
+						// fill the map with the key volumeName and the value of a pvc struct type
 						candidate[volumeName] = p
+
 					} else {
+
 						re := regexp.MustCompile(`.*-(pvc-.*)`)
 						p.volumeName = disk.Name
 						p.zone = z
 						volumeName := "moved-" + re.FindStringSubmatch(disk.Name)[1]
 						candidate[volumeName] = p
+					
 					}
 				}
 			}
@@ -147,15 +162,17 @@ func getPVCs(pvcs *v1.PersistentVolumeClaimList) []string {
 
 }
 
+
+// delete the pvcs associated with the disk removed
 func deletePVCs(clientset *kubernetes.Clientset, pvc string, namespace string) bool {
 
 	api := clientset.CoreV1()
 
 	err := api.PersistentVolumeClaims(namespace).Delete(pvc, nil)
 	if err != nil {
-		fmt.Println("Error deleting PVC %s\n", pvc)
+		fmt.Printf("Error deleting PVC %s\n", pvc)
 	} else {
-		fmt.Println("Deleting PVC %s\n", pvc)
+		fmt.Printf("Deleting PVC %s\n", pvc)
 	}
 
 	return true
