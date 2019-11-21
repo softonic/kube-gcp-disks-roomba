@@ -18,7 +18,6 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-
 // structs:
 type pvc struct {
 	zone       string
@@ -40,14 +39,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-
 	// client-go uses the Service Account token mounted inside the Pod when the rest.InClusterConfig() is used.
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
-
 
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
@@ -71,11 +68,10 @@ func main() {
 
 	// Flags and arguments
 
-	project := flag.String("project", "foo", "a string")	
+	project := flag.String("project", "foo", "a string")
 	zones := []string{}
 	flag.Parse()
 	zones = flag.Args()
-
 
 	// iterate zones passed via args and fill the map candidate with the disks that are not in use
 
@@ -88,7 +84,7 @@ func main() {
 				if disk.Users == nil {
 
 					// this means that the pvc is disk is not in use
-					
+
 					if disk.SourceSnapshot == "" {
 						// regexp to get the following data
 
@@ -100,19 +96,21 @@ func main() {
 						volumeName := reVolumeName.FindStringSubmatch(disk.Description)[1]
 						p.pvcName = rePvc.FindStringSubmatch(disk.Description)[1]
 						p.namespace = reNamespace.FindStringSubmatch(disk.Description)[1]
-						
+
 						// fill the map with the key volumeName and the value of a pvc struct type
 						candidate[volumeName] = p
 
 					} else {
-
+						fmt.Println("this is snapshot", disk.Name)
 						re := regexp.MustCompile(`.*-(pvc-.*)`)
 						p.volumeName = disk.Name
 						p.zone = z
-						volumeName := "moved-" + re.FindStringSubmatch(disk.Name)[1]
-						candidate[volumeName] = p
-					
+						if m := re.FindStringSubmatch(disk.Name); m != nil {
+							volumeName := "moved-" + m[1]
+							candidate[volumeName] = p
+						}
 					}
+
 				}
 			}
 			return nil
@@ -161,7 +159,6 @@ func getPVCs(pvcs *v1.PersistentVolumeClaimList) []string {
 	return standard
 
 }
-
 
 // delete the pvcs associated with the disk removed
 func deletePVCs(clientset *kubernetes.Clientset, pvc string, namespace string) bool {
