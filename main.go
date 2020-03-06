@@ -72,8 +72,8 @@ func main() {
 	project := flag.String("project", "foo", "a string")
         slackurl := flag.String("slackurl", "bar", "a string")
 	zones := []string{}
+        zones = flag.Args()
 	flag.Parse()
-	zones = flag.Args()
 
 	// iterate zones passed via args and fill the map candidate with the disks that are not in use
 
