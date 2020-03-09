@@ -15,7 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/client-go/rest"
+	// "k8s.io/client-go/rest"
         "github.com/ashwanthkumar/slack-go-webhook"
 )
 
@@ -42,10 +42,19 @@ func main() {
 
 	// client-go uses the Service Account token mounted inside the Pod when the rest.InClusterConfig() is used.
 
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		log.Fatal(err)
-	}
+	//config, err := rest.InClusterConfig()
+	//if err != nil {
+//		log.Fatal(err)
+//	}
+
+        kubeconfig := filepath.Join(
+                        os.Getenv("HOME"), ".kube", "config",
+                )
+
+                config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+                if err != nil {
+                log.Fatal(err)
+        }
 
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
