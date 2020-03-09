@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
 	"regexp"
 
@@ -16,7 +18,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	// "k8s.io/client-go/rest"
-        "github.com/ashwanthkumar/slack-go-webhook"
+	"github.com/ashwanthkumar/slack-go-webhook"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 // structs:
@@ -44,17 +47,17 @@ func main() {
 
 	//config, err := rest.InClusterConfig()
 	//if err != nil {
-//		log.Fatal(err)
-//	}
+	//		log.Fatal(err)
+	//	}
 
-        kubeconfig := filepath.Join(
-                        os.Getenv("HOME"), ".kube", "config",
-                )
+	kubeconfig := filepath.Join(
+		os.Getenv("HOME"), ".kube", "config",
+	)
 
-                config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-                if err != nil {
-                log.Fatal(err)
-        }
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
@@ -79,10 +82,9 @@ func main() {
 	// Flags and arguments
 
 	project := flag.String("project", "foo", "a string")
-        slackurl := flag.String("slackurl", "bar", "a string")
+	slackurl := flag.String("slackurl", "bar", "a string")
 	zones := []string{}
 	flag.Parse()
-
 
 	zones = flag.Args()
 
@@ -153,26 +155,26 @@ func main() {
 		}
 	}
 
-        for _,val := range candidate {
+	for _, val := range candidate {
 
-                attachment1 := slack.Attachment {}
-                attachment1.AddField(slack.Field { Title: "PVCName", Value: val.pvcName })
-                attachment1.AddField(slack.Field { Title: "VolumeName", Value: val.volumeName })
-                attachment1.AddField(slack.Field { Title: "Namespace", Value: val.namespace })
-                attachment1.AddAction(slack.Action { Type: "button", Text: "Check in the console", Url: "https://console.cloud.google.com/compute/disks?project=kubertonic", Style: "primary" })
-                payload := slack.Payload {
-                  Text: "This is a message that reports one disk is not being used in GCP. Do you really need it? check please",
-                  Username: "robot",
-                  Channel: "#disk-usage-kubernetes",
-                  IconEmoji: ":gcp-disks-maintenance:",
-                  Attachments: []slack.Attachment{attachment1},
-                }
-                err := slack.Send(*slackurl, "", payload)
-                if len(err) > 0 {
-                  fmt.Printf("error: %s\n", err)
-                }
+		attachment1 := slack.Attachment{}
+		attachment1.AddField(slack.Field{Title: "PVCName", Value: val.pvcName})
+		attachment1.AddField(slack.Field{Title: "VolumeName", Value: val.volumeName})
+		attachment1.AddField(slack.Field{Title: "Namespace", Value: val.namespace})
+		attachment1.AddAction(slack.Action{Type: "button", Text: "Check in the console", Url: "https://console.cloud.google.com/compute/disks?project=kubertonic", Style: "primary"})
+		payload := slack.Payload{
+			Text:        "This is a message that reports one disk is not being used in GCP. Do you really need it? check please",
+			Username:    "robot",
+			Channel:     "#disk-usage-kubernetes",
+			IconEmoji:   ":gcp-disks-maintenance:",
+			Attachments: []slack.Attachment{attachment1},
+		}
+		err := slack.Send(*slackurl, "", payload)
+		if len(err) > 0 {
+			fmt.Printf("error: %s\n", err)
+		}
 
-        }
+	}
 
 }
 
