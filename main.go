@@ -75,7 +75,8 @@ func main() {
 	flag.Parse()
 	zones = flag.Args()
 
-        var protocol string
+
+	protocol := "https://"
 
         url := protocol + *slackurl
 
