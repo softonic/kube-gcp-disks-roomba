@@ -4,8 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 
 	"regexp"
 
@@ -17,9 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	// "k8s.io/client-go/rest"
-	"github.com/ashwanthkumar/slack-go-webhook"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/rest"
+        "github.com/ashwanthkumar/slack-go-webhook"
 )
 
 // structs:
@@ -45,16 +42,7 @@ func main() {
 
 	// client-go uses the Service Account token mounted inside the Pod when the rest.InClusterConfig() is used.
 
-	//config, err := rest.InClusterConfig()
-	//if err != nil {
-	//		log.Fatal(err)
-	//	}
-
-	kubeconfig := filepath.Join(
-		os.Getenv("HOME"), ".kube", "config",
-	)
-
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -82,11 +70,14 @@ func main() {
 	// Flags and arguments
 
 	project := flag.String("project", "foo", "a string")
-	slackurl := flag.String("slackurl", "bar", "a string")
+        slackurl := flag.String("slackurl", "bar", "a string")
 	zones := []string{}
 	flag.Parse()
-
 	zones = flag.Args()
+
+        var protocol string
+
+        url := protocol + *slackurl
 
 	// iterate zones passed via args and fill the map candidate with the disks that are not in use
 
@@ -155,26 +146,26 @@ func main() {
 		}
 	}
 
-	for _, val := range candidate {
+        for _,val := range candidate {
 
-		attachment1 := slack.Attachment{}
-		attachment1.AddField(slack.Field{Title: "PVCName", Value: val.pvcName})
-		attachment1.AddField(slack.Field{Title: "VolumeName", Value: val.volumeName})
-		attachment1.AddField(slack.Field{Title: "Namespace", Value: val.namespace})
-		attachment1.AddAction(slack.Action{Type: "button", Text: "Check in the console", Url: "https://console.cloud.google.com/compute/disks?project=kubertonic", Style: "primary"})
-		payload := slack.Payload{
-			Text:        "This is a message that reports one disk is not being used in GCP. Do you really need it? check please",
-			Username:    "robot",
-			Channel:     "#disk-usage-kubernetes",
-			IconEmoji:   ":gcp-disks-maintenance:",
-			Attachments: []slack.Attachment{attachment1},
-		}
-		err := slack.Send(*slackurl, "", payload)
-		if len(err) > 0 {
-			fmt.Printf("error: %s\n", err)
-		}
+                attachment1 := slack.Attachment {}
+                attachment1.AddField(slack.Field { Title: "PVCName", Value: val.pvcName })
+                attachment1.AddField(slack.Field { Title: "VolumeName", Value: val.volumeName })
+                attachment1.AddField(slack.Field { Title: "Namespace", Value: val.namespace })
+                attachment1.AddAction(slack.Action { Type: "button", Text: "Check in the console", Url: "https://console.cloud.google.com/compute/disks?project=kubertonic", Style: "primary" })
+                payload := slack.Payload {
+                  Text: "This is a message that reports one disk is not being used in GCP. Do you really need it? check please",
+                  Username: "robot",
+                  Channel: "#disk-usage-kubernetes",
+                  IconEmoji: ":gcp-disks-maintenance:",
+                  Attachments: []slack.Attachment{attachment1},
+                }
+                err := slack.Send(url, "", payload)
+                if len(err) > 0 {
+                  fmt.Printf("error: %s\n", err)
+                }
 
-	}
+        }
 
 }
 
