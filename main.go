@@ -7,6 +7,7 @@ import (
 
 	"regexp"
 
+	"github.com/ashwanthkumar/slack-go-webhook"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/compute/v1"
@@ -70,15 +71,14 @@ func main() {
 	// Flags and arguments
 
 	project := flag.String("project", "foo", "a string")
-        slackurl := flag.String("slackurl", "bar", "a string")
+	slackurl := flag.String("slackurl", "bar", "a string")
 	zones := []string{}
 	flag.Parse()
 	zones = flag.Args()
 
-
 	protocol := "https://"
 
-        url := protocol + *slackurl
+	url := protocol + *slackurl
 
 	// iterate zones passed via args and fill the map candidate with the disks that are not in use
 
@@ -147,26 +147,58 @@ func main() {
 		}
 	}
 
-        for _,val := range candidate {
+	for _, val := range candidate {
 
-                attachment1 := slack.Attachment {}
-                attachment1.AddField(slack.Field { Title: "PVCName", Value: val.pvcName })
-                attachment1.AddField(slack.Field { Title: "VolumeName", Value: val.volumeName })
-                attachment1.AddField(slack.Field { Title: "Namespace", Value: val.namespace })
-                attachment1.AddAction(slack.Action { Type: "button", Text: "Check in the console", Url: "https://console.cloud.google.com/compute/disks?project=kubertonic", Style: "primary" })
-                payload := slack.Payload {
-                  Text: "This is a message that reports one disk is not being used in GCP. Do you really need it? check please",
-                  Username: "robot",
-                  Channel: "#disk-usage-kubernetes",
-                  IconEmoji: ":gcp-disks-maintenance:",
-                  Attachments: []slack.Attachment{attachment1},
-                }
-                err := slack.Send(url, "", payload)
-                if len(err) > 0 {
-                  fmt.Printf("error: %s\n", err)
-                }
+		attachment1 := slack.Attachment{}
+		attachment1.AddField(slack.Field{Title: "PVCName", Value: val.pvcName})
+		attachment1.AddField(slack.Field{Title: "VolumeName", Value: val.volumeName})
+		attachment1.AddField(slack.Field{Title: "Namespace", Value: val.namespace})
+		attachment1.AddAction(slack.Action{Type: "button", Text: "Check in the console", Url: "https://console.cloud.google.com/compute/disks?project=kubertonic", Style: "primary"})
+		payload := slack.Payload{
+			Text:        "This is a message that reports one disk is not being used in GCP. Do you really need it? check please",
+			Username:    "robot",
+			Channel:     "#disk-usage-kubernetes",
+			IconEmoji:   ":gcp-disks-maintenance:",
+			Attachments: []slack.Attachment{attachment1},
+		}
+		err := slack.Send(url, "", payload)
+		if len(err) > 0 {
+			fmt.Printf("error: %s\n", err)
+		}
 
-        }
+	}
+
+	for key, val := range candidate {
+
+		// Si no existe el pv , eliminar el disco que no está en uso
+		// If neither PV nor PVC  exist, remove the disk not in used
+		noPvcExists(ctx, clientset, key, val, computeService, *projectID)
+
+	}
+
+}
+
+func noPvcExists(ctx context.Context, clientset *kubernetes.Clientset, pv string, c pvc, computeService *compute.Service, projectID string) {
+
+	var err error
+	// si el pvc no existe en el namespace, ni el pv, se puede borrar el disco ( key)
+	api := clientset.CoreV1()
+	//var  pvscc v1.PersistentVolumeClaim
+
+	_, err = api.PersistentVolumeClaims(c.namespace).Get(c.pvcName, metav1.GetOptions{})
+	if err != nil {
+		//fmt.Println("Error getting PVC %s\n", c.pvcName)
+		//fmt.Println("Deleting disk \n", c.volumeName)
+		_, err = api.PersistentVolumes().Get(pv, metav1.GetOptions{})
+		if err != nil {
+			fmt.Println("=========Now we can delete disk \n", c.volumeName)
+			resp, err := computeService.Disks.Delete(projectID, c.zone, c.volumeName).Context(ctx).Do()
+			fmt.Printf("%#v\n", resp)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
 
 }
 
