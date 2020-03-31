@@ -70,7 +70,7 @@ func main() {
 
 	// Flags and arguments
 
-	project := flag.String("project", "foo", "a string")
+	projectID := flag.String("project", "foo", "a string")
 	slackurl := flag.String("slackurl", "bar", "a string")
 	zones := []string{}
 	flag.Parse()
@@ -85,7 +85,7 @@ func main() {
 	p := pvc{}
 	candidate := make(map[string]pvc)
 	for _, z := range zones {
-		req := computeService.Disks.List(*project, z)
+		req := computeService.Disks.List(*projectID, z)
 		if err := req.Pages(ctx, func(page *compute.DiskList) error {
 			for _, disk := range page.Items {
 				if disk.Users == nil {
@@ -132,7 +132,7 @@ func main() {
 		if val, ok := candidate[k]; ok {
 			fmt.Println("Deleting disk:", val.volumeName)
 
-			resp, err := computeService.Disks.Delete(*project, val.zone, val.volumeName).Context(ctx).Do()
+			resp, err := computeService.Disks.Delete(*projectID, val.zone, val.volumeName).Context(ctx).Do()
 			if err != nil {
 				log.Fatal(err)
 			}
