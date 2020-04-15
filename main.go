@@ -180,22 +180,16 @@ func main() {
 func noPvcExists(ctx context.Context, clientset *kubernetes.Clientset, pv string, c pvc, computeService *compute.Service, projectID string) {
 
 	var err error
-	// si el pvc no existe en el namespace, ni el pv, se puede borrar el disco ( key)
+	// si el pv no existe en el namespace, se puede borrar el disco ( key)
 	api := clientset.CoreV1()
 	//var  pvscc v1.PersistentVolumeClaim
 
-	_, err = api.PersistentVolumeClaims(c.namespace).Get(c.pvcName, metav1.GetOptions{})
+	_, err = api.PersistentVolumes().Get(pv, metav1.GetOptions{})
 	if err != nil {
-		//fmt.Println("Error getting PVC %s\n", c.pvcName)
-		//fmt.Println("Deleting disk \n", c.volumeName)
-		_, err = api.PersistentVolumes().Get(pv, metav1.GetOptions{})
+		resp, err := computeService.Disks.Delete(projectID, c.zone, c.volumeName).Context(ctx).Do()
+		fmt.Printf("%#v\n", resp)
 		if err != nil {
-			fmt.Println("=========Now we can delete disk \n", c.volumeName)
-			resp, err := computeService.Disks.Delete(projectID, c.zone, c.volumeName).Context(ctx).Do()
-			fmt.Printf("%#v\n", resp)
-			if err != nil {
-				log.Fatal(err)
-			}
+			log.Fatal(err)
 		}
 	}
 
